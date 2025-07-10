@@ -1,15 +1,36 @@
 import { useState } from "react";
 import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import "./App.css";
+
+
 
 function App() {
   const [greetMsg, setGreetMsg] = useState("");
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
 
+  async function selectFolder() {
+    const folder = await open({
+      directory: true,
+      multiple: false,
+    });
+  
+    if (folder) {
+      console.log("Selected folder path:", folder);
+      // You can now send it to Rust (via `invoke`) to start server
+      await invoke('start_server', { folder });
+    } else {
+      console.log("User cancelled folder selection");
+    }
+  }
+
+  async function startServer() {
+    await invoke("start_server", { folder: "C:\\Users\\User\\Desktop\\test" });
+  }
+
   async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
     setGreetMsg(await invoke("greet", { name }));
   }
 
@@ -48,9 +69,16 @@ function App() {
           placeholder="Enter a name..."
         />
         <button type="submit">Greet</button>
+        <button type="button" onClick={startServer}>
+          Start Server
+        </button>
       </form>
       <p>{greetMsg}</p>
       <p>{pin}</p>
+
+      <button onClick={selectFolder} className="btn">
+        Select Folder to Share
+      </button>
     </main>
   );
 }
