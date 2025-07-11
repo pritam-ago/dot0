@@ -6,6 +6,7 @@ import (
 
 	"github.com/pritam-ago/go-relay/internal/db"
 	"github.com/pritam-ago/go-relay/internal/handlers"
+	"github.com/pritam-ago/go-relay/internal/ws"
 )
 
 func main() {
@@ -17,7 +18,7 @@ func main() {
 
 	http.HandleFunc("/register-pin", handlers.HandleRegisterPin)
 	http.HandleFunc("/check-pin/", handlers.HandleCheckPin)
-
+	http.HandleFunc("/connect-pc/", ws.HandlePCConnect)
 
 	log.Println("🧠 Relay server running on :8080")
 	err := http.ListenAndServe(":8080", nil)
