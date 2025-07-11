@@ -16,6 +16,8 @@ func main() {
 	})
 
 	http.HandleFunc("/register-pin", handlers.HandleRegisterPin)
+	http.HandleFunc("/check-pin/", handlers.HandleCheckPin)
+
 
 	log.Println("🧠 Relay server running on :8080")
 	err := http.ListenAndServe(":8080", nil)
