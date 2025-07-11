@@ -4,16 +4,18 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/pritam-ago/go-relay/internal/db"
+	"github.com/pritam-ago/go-relay/internal/models"
+
 	"github.com/gorilla/websocket"
 )
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true // allow any origin for now
+		return true
 	},
 }
 
-// ActivePCConnections holds active PC WebSocket sessions by PIN
 var ActivePCConnections = make(map[string]*websocket.Conn)
 
 func HandlePCConnect(w http.ResponseWriter, r *http.Request) {
@@ -32,12 +34,21 @@ func HandlePCConnect(w http.ResponseWriter, r *http.Request) {
 	log.Println("✅ PC connected with PIN:", pin)
 	ActivePCConnections[pin] = conn
 
-	// Keep PC socket alive (or handle disconnects)
+	// Update DB: PC is now connected
+	err = models.UpdatePCConnectionStatus(db.DB, pin, true)
+	if err != nil {
+		log.Println("⚠️ Failed to update DB:", err)
+	}
+
+	// Listen for disconnect
 	for {
 		_, _, err := conn.ReadMessage()
 		if err != nil {
 			log.Println("💀 PC disconnected:", err)
 			delete(ActivePCConnections, pin)
+
+			// Mark PC as disconnected
+			_ = models.UpdatePCConnectionStatus(db.DB, pin, false)
 			break
 		}
 	}

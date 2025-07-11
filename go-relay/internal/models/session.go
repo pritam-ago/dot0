@@ -40,3 +40,12 @@ func GetSession(db *gorm.DB, pin string) (*Session, error) {
 	err := db.First(&s, "pin = ?", pin).Error
 	return &s, err
 }
+
+func UpdatePCConnectionStatus(db *gorm.DB, pin string, connected bool) error {
+	return db.Model(&Session{}).
+		Where("pin = ?", pin).
+		Updates(map[string]interface{}{
+			"pc_connected":   connected,
+			"last_connected": time.Now(),
+		}).Error
+}
