@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"time"
 	"gorm.io/gorm"
 )
@@ -14,6 +15,16 @@ type Session struct {
 }
 
 func CreateSession(db *gorm.DB, pin string) (*Session, error) {
+	// Check if it already exists
+	var existing Session
+	err := db.First(&existing, "pin = ?", pin).Error
+	if err == nil {
+		return nil, errors.New("PIN already exists")
+	}
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
+	}
+
 	session := &Session{
 		PIN:           pin,
 		CreatedAt:     time.Now(),

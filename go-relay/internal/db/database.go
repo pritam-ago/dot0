@@ -4,7 +4,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"log"
-	"github.com/pritam-ago/go-relay/models"
+	"github.com/pritam-ago/go-relay/internal/models"
 )
 
 var DB *gorm.DB
