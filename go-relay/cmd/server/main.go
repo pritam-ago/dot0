@@ -13,7 +13,12 @@ func main() {
 	db.Init()
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Relay server running"))
+		w.Write([]byte("Relay server running...."))
+	})
+
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("OK"))
+		w.WriteHeader(http.StatusOK)
 	})
 
 	http.HandleFunc("/register-pin", handlers.HandleRegisterPin)
