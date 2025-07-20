@@ -41,6 +41,7 @@ func main() {
 
 	http.HandleFunc("/register-pin", corsMiddleware(handlers.HandleRegisterPin))
 	http.HandleFunc("/check-pin/", corsMiddleware(handlers.HandleCheckPin))
+	http.HandleFunc("/get-base-dir/", corsMiddleware(handlers.HandleGetBaseDir))
 	http.HandleFunc("/connect-pc/", corsMiddleware(ws.HandlePCConnect))
 	http.HandleFunc("/connect-user/", corsMiddleware(ws.HandleUserConnect))
 

@@ -91,7 +91,25 @@ fn read_file(path: String) -> Result<Vec<u8>, String> {
 
 #[tauri::command]
 fn write_file(path: String, content: Vec<u8>) -> Result<(), String> {
-    fs::write(&path, content).map_err(|e| format!("Failed to write file: {}", e))
+    let path_buf = PathBuf::from(&path);
+
+    // Ensure the path is absolute
+    let absolute_path = if path_buf.is_absolute() {
+        path_buf
+    } else {
+        // If it's relative, make it absolute by joining with current directory
+        std::env::current_dir()
+            .map_err(|e| format!("Failed to get current directory: {}", e))?
+            .join(&path_buf)
+    };
+
+    // Create parent directories if they don't exist
+    if let Some(parent) = absolute_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create parent directories: {}", e))?;
+    }
+
+    fs::write(&absolute_path, content).map_err(|e| format!("Failed to write file: {}", e))
 }
 
 #[tauri::command]

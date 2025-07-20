@@ -109,9 +109,10 @@ func HandleUserConnect(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	log.Printf("🚀 Starting message relay for PIN: %s", pin)
-	// Start relaying messages
-	go relayMessages(userConn, pcConn, "user→pc")
-	relayMessages(pcConn, userConn, "pc→user") // this will block until PC disconnects or closes socket
+	// Start relaying messages from user to PC
+	go relayUserToPC(userConn, pcConn, pin)
+	// Relay messages from PC to user (this will block until PC disconnects)
+	relayMessages(pcConn, userConn, "pc→user")
 }
 
 // Helper function to get active PC connection PINs for debugging

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { join } from '@tauri-apps/api/path';
 import "./App.css";
 
 interface FileInfo {
@@ -18,11 +19,52 @@ function App() {
   const [currentPath, setCurrentPath] = useState("");
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [ws, setWs] = useState<WebSocket | null>(null);
+  // Store current session data for immediate access
+  const [sessionData, setSessionData] = useState<{pin: string, folder: string} | null>(null);
+
+  // Helper functions for localStorage
+  const saveToLocalStorage = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+      console.log(`Saved to localStorage: ${key} = ${value}`);
+    } catch (error) {
+      console.error(`Failed to save to localStorage: ${key}`, error);
+    }
+  };
+
+  const getFromLocalStorage = (key: string): string | null => {
+    try {
+      const value = localStorage.getItem(key);
+      console.log(`Retrieved from localStorage: ${key} = ${value}`);
+      return value;
+    } catch (error) {
+      console.error(`Failed to get from localStorage: ${key}`, error);
+      return null;
+    }
+  };
+
+  // Load saved data on app startup
+  const loadSavedData = () => {
+    const savedPin = getFromLocalStorage('pc_app_pin');
+    const savedFolder = getFromLocalStorage('pc_app_folder');
+    
+    if (savedPin && savedFolder) {
+      console.log("Loading saved data from localStorage:", { pin: savedPin, folder: savedFolder });
+      setPin(savedPin);
+      setSelectedFolder(savedFolder);
+      setSessionData({ pin: savedPin, folder: savedFolder });
+    }
+  };
+
+  // Load saved data when component mounts
+  useEffect(() => {
+    loadSavedData();
+  }, []);
 
   // Register PIN with relay server
   const registerPin = async (pin: string): Promise<boolean> => {
     try {
-      console.log("🔍 Registering PIN with relay server:", pin);
+      console.log("Registering PIN with relay server:", pin);
       const response = await fetch('http://localhost:8080/register-pin', {
         method: 'POST',
         headers: {
@@ -33,121 +75,125 @@ function App() {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("❌ Failed to register PIN:", response.status, errorText);
+        console.error("Failed to register PIN:", response.status, errorText);
         return false;
       }
 
       const result = await response.json();
-      console.log("✅ PIN registered successfully:", result);
+      console.log("PIN registered successfully:", result);
       return true;
     } catch (error) {
-      console.error("❌ Error registering PIN:", error);
+      console.error("Error registering PIN:", error);
       return false;
     }
   };
 
   // Connect to relay server
   const connectToRelay = async (pin: string, baseDir: string) => {
-    console.log("🔍 Connecting to relay server with PIN:", pin);
+    console.log("Connecting to relay server with PIN:", pin);
     const relayUrl = `ws://localhost:8080/connect-pc/${pin}`;
-    console.log("🔗 WebSocket URL:", relayUrl);
     const socket = new WebSocket(relayUrl);
     
     socket.onopen = () => {
-      console.log("✅ Connected to relay server");
-      console.log("🔗 WebSocket readyState:", socket.readyState);
+      console.log("Connected to relay server");
       setIsConnected(true);
       
       // Register base directory
-      console.log("📂 Registering base directory:", baseDir);
       socket.send(JSON.stringify({
         type: "register_base_dir",
         data: { path: baseDir }
       }));
       
       // Send a test message to verify connection
-      console.log("🧪 Sending test message to verify connection");
       socket.send(JSON.stringify({
         type: "test_message",
         data: { message: "PC app is ready to receive messages" }
       }));
+      
+      console.log("WebSocket connection established and ready");
     };
 
     socket.onmessage = (event) => {
-      console.log("📨 Received message from relay server:", event.data);
-      console.log("🔗 WebSocket readyState:", socket.readyState);
-      console.log("🔗 WebSocket connected:", socket.readyState === WebSocket.OPEN);
-      console.log("🔗 Is connected state:", isConnected);
+      console.log("Received message from relay server:", event.data);
       
       try {
         const message = JSON.parse(event.data);
-        console.log("📨 Parsed message:", message);
-        console.log("📨 Message type:", message.type);
-        console.log("📨 Message data:", message.data);
         handleRelayMessage(message);
       } catch (error) {
-        console.error("❌ Failed to parse message from relay:", error);
-        console.error("❌ Raw message data:", event.data);
+        console.error("Failed to parse message from relay:", error);
       }
     };
 
     socket.onclose = (event) => {
-      console.log("🔌 Disconnected from relay server");
-      console.log("🔌 Close event:", event);
+      console.log("Disconnected from relay server");
       setIsConnected(false);
     };
 
     socket.onerror = (error) => {
-      console.error("❌ WebSocket error:", error);
-      console.log("🔗 WebSocket readyState:", socket.readyState);
+      console.error("WebSocket error:", error);
     };
 
     setWs(socket);
   };
 
   const handleRelayMessage = (message: any) => {
-    console.log("📨 Received relay message:", message.type, message.data);
-    console.log("📨 Processing message type:", message.type);
-    console.log("📨 Full message object:", JSON.stringify(message, null, 2));
+    console.log("Processing message type:", message.type);
+    console.log("Current app state - PIN:", pin, "SelectedFolder:", selectedFolder, "IsConnected:", isConnected);
+    console.log("Session data:", sessionData);
     
     switch (message.type) {
       case "list_files":
-        console.log("📋 Handling list_files message");
         handleListFiles(message.data.path);
         break;
       case "download_file":
-        console.log("📥 Handling download_file message");
         handleDownloadFile(message.data.path);
         break;
       case "upload_file":
-        console.log("📤 Handling upload_file message");
-        console.log("📤 Upload data received:", {
-          path: message.data.path,
-          filename: message.data.filename,
-          contentLength: message.data.content ? message.data.content.length : 0,
-          contentType: typeof message.data.content
-        });
-        handleUploadFile(message.data);
+        // Use localStorage for immediate access, then session data, then state
+        const storedPin = getFromLocalStorage('pc_app_pin');
+        const storedFolder = getFromLocalStorage('pc_app_folder');
+        const currentPin = storedPin || sessionData?.pin || pin;
+        const currentFolder = storedFolder || sessionData?.folder || selectedFolder;
+        
+        console.log("Upload check - Stored PIN:", storedPin, "Stored Folder:", storedFolder);
+        console.log("Upload check - Session PIN:", sessionData?.pin, "Session Folder:", sessionData?.folder);
+        console.log("Upload check - State PIN:", pin, "State Folder:", selectedFolder);
+        console.log("Upload check - Final PIN:", currentPin, "Final Folder:", currentFolder);
+        
+        if (!currentPin || !currentFolder) {
+          console.error("Cannot handle upload - app not properly initialized");
+          console.error("Final PIN:", currentPin, "Final Folder:", currentFolder);
+          if (ws) {
+            ws.send(JSON.stringify({
+              type: "upload_response",
+              data: { 
+                success: false, 
+                error: "App not properly initialized. Please select a folder first." 
+              }
+            }));
+          }
+          return;
+        }
+        handleUploadFile(message.data, currentPin, currentFolder);
         break;
       case "delete_file":
-        console.log("🗑️ Handling delete_file message");
         handleDeleteFile(message.data.path);
         break;
       case "test_message":
-        console.log("🧪 Received test message:", message.data);
+        console.log("Received test message:", message.data);
         break;
       default:
-        console.log("❓ Unknown message type:", message.type);
-        console.log("❓ Full message:", message);
+        console.log("Unknown message type:", message.type);
         break;
     }
   };
 
   const handleListFiles = async (path: string) => {
     try {
-      console.log("📋 Listing files for path:", path);
-      const files = await invoke("list_files", { path }) as FileInfo[];
-      console.log("📁 Found files:", files.length);
+      // For list files, use the selectedFolder directly if path is empty or just "/"
+      const fullPath = (path === "/" || path === "" || path === selectedFolder) ? selectedFolder : await join(selectedFolder, path);
+      console.log("Listing files for path:", fullPath);
+      const files = await invoke("list_files", { path: fullPath }) as FileInfo[];
       
       // Update local file list
       setFiles(files);
@@ -164,13 +210,14 @@ function App() {
         setCurrentPath(path);
       }
     } catch (error) {
-      console.error("❌ Failed to list files:", error);
+      console.error("Failed to list files:", error);
     }
   };
 
   const handleDownloadFile = async (filePath: string) => {
     try {
-      const content = await invoke("read_file", { path: filePath }) as number[];
+      const fullPath = selectedFolder ? await join(selectedFolder, filePath) : filePath;
+      const content = await invoke("read_file", { path: fullPath }) as number[];
       if (ws) {
         ws.send(JSON.stringify({
           type: "file_content",
@@ -186,14 +233,45 @@ function App() {
     }
   };
 
-  const handleUploadFile = async (data: any) => {
+  const handleUploadFile = async (data: any, currentPin?: string, currentFolder?: string) => {
     try {
-      console.log("📤 Processing upload request for:", data.path);
-      console.log("📊 Upload data:", {
-        path: data.path,
-        filename: data.filename,
-        contentLength: data.content ? data.content.length : 0
-      });
+      console.log("Processing upload request for:", data.path);
+      console.log("Current PIN state:", pin);
+      console.log("Passed PIN:", currentPin, "Passed Folder:", currentFolder);
+      
+      // Always get base directory from database
+      let baseDir = null;
+      
+      // Use passed parameters or fallback to state
+      const pinToUse = currentPin || pin;
+      const folderToUse = currentFolder || selectedFolder;
+      
+      // Try to get PIN from state, or use selectedFolder as fallback
+      if (pinToUse) {
+        try {
+          const response = await fetch(`http://localhost:8080/get-base-dir/${pinToUse}`);
+          if (response.ok) {
+            const result = await response.json();
+            if (result.base_directory) {
+              baseDir = result.base_directory;
+            } else {
+              console.error("No base directory found in database for PIN:", pinToUse);
+            }
+          } else {
+            console.error("Failed to fetch base directory from database:", response.status);
+          }
+        } catch (error) {
+          console.error("Error fetching base directory from database:", error);
+        }
+      } else {
+        console.log("PIN not in state, using selectedFolder as fallback:", folderToUse);
+        if (folderToUse) {
+          baseDir = folderToUse;
+        } else {
+          console.error("No PIN available and no selectedFolder fallback");
+          throw new Error("No PIN available for fetching base directory");
+        }
+      }
       
       // Convert content to Uint8Array if it's an array of numbers
       let content: Uint8Array;
@@ -205,13 +283,34 @@ function App() {
         throw new Error("Invalid content format");
       }
       
-      console.log("📁 Writing file to:", data.path);
+      let fullPath;
+      if (baseDir) {
+        fullPath = await join(baseDir, data.path);
+      } else {
+        fullPath = data.path;
+      }
+      
+      // Ensure we have an absolute path
+      let absolutePath;
+      if (fullPath.startsWith('/') || fullPath.includes(':')) {
+        absolutePath = fullPath;
+      } else {
+        // If it's not absolute, we need to construct the proper path
+        if (baseDir) {
+          // Use the base directory as the base
+          absolutePath = `${baseDir}\\${fullPath}`;
+        } else {
+          // Fallback to E: drive
+          absolutePath = `E:\\${fullPath}`;
+        }
+      }
+      
       await invoke("write_file", { 
-        path: data.path, 
+        path: absolutePath, 
         content: Array.from(content) // Convert back to array for Tauri
       });
       
-      console.log("✅ File written successfully");
+      console.log("File written successfully");
       
       if (ws) {
         ws.send(JSON.stringify({
@@ -221,10 +320,9 @@ function App() {
       }
       
       // Refresh file list
-      console.log("🔄 Refreshing file list...");
       handleListFiles(currentPath);
     } catch (error) {
-      console.error("❌ Failed to write file:", error);
+      console.error("Failed to write file:", error);
       if (ws) {
         ws.send(JSON.stringify({
           type: "upload_response",
@@ -236,7 +334,8 @@ function App() {
 
   const handleDeleteFile = async (filePath: string) => {
     try {
-      await invoke("delete_file", { path: filePath });
+      const fullPath = selectedFolder ? await join(selectedFolder, filePath) : filePath;
+      await invoke("delete_file", { path: fullPath });
       // Refresh file list
       handleListFiles(currentPath);
     } catch (error) {
@@ -252,35 +351,48 @@ function App() {
       });
     
       if (folder) {
-        console.log("📁 Selected folder path:", folder);
+        console.log("Selected folder path:", folder);
         setSelectedFolder(folder);
+        console.log("selectedFolder state set to:", folder);
         
         // Generate PIN and connect to relay
         const newPin = await invoke("generate_pin") as string;
-        console.log("🔍 Generated PIN:", newPin);
+        console.log("Generated PIN:", newPin);
         setPin(newPin);
+        console.log("PIN state set to:", newPin);
+        
+        // Save to localStorage for immediate access
+        saveToLocalStorage('pc_app_pin', newPin);
+        saveToLocalStorage('pc_app_folder', folder);
+        
+        // Set session data for immediate access
+        setSessionData({ pin: newPin, folder });
+        console.log("Session data set:", { pin: newPin, folder });
         
         // Start local file server
-        console.log("🌐 Starting local file server...");
+        console.log("Starting local file server...");
         await invoke('start_server', { folder });
-        console.log("✅ Local file server started");
+        console.log("Local file server started");
         
         // Register PIN with relay server
-        console.log("🔍 Attempting to register PIN with relay server...");
         const registrationSuccess = await registerPin(newPin);
         if (!registrationSuccess) {
-          console.error("❌ Failed to register PIN, cannot proceed with connection");
+          console.error("Failed to register PIN, cannot proceed with connection");
           alert("Failed to register PIN with relay server. Please check if the relay server is running on localhost:8080 and try again.");
           return;
         }
         
-        console.log("✅ PIN registered successfully, connecting to relay...");
+        console.log("PIN registered successfully, connecting to relay...");
         // Connect to relay server
         await connectToRelay(newPin, folder);
         
+        // Wait a moment for WebSocket connection to be fully established
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Set initial path and send initial file listing
         setCurrentPath(folder);
-        console.log("📋 Sending initial file listing for:", folder);
+        console.log("App fully initialized - PIN:", newPin, "SelectedFolder:", folder, "IsConnected:", true);
+        
         if (ws) {
           ws.send(JSON.stringify({
             type: "list_files",
@@ -291,7 +403,7 @@ function App() {
         console.log("User cancelled folder selection");
       }
     } catch (error) {
-      console.error("❌ Error in selectFolder:", error);
+      console.error("Error in selectFolder:", error);
       alert("An error occurred while setting up the connection. Please try again.");
     }
   }
@@ -311,23 +423,6 @@ function App() {
         type: "download_file",
         data: { path: filePath }
       }));
-    }
-  };
-
-  const uploadFile = (file: File, targetPath: string) => {
-    if (ws) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        ws.send(JSON.stringify({
-          type: "upload_file",
-          data: {
-            path: targetPath,
-            content: reader.result,
-            filename: file.name
-          }
-        }));
-      };
-      reader.readAsArrayBuffer(file);
     }
   };
 

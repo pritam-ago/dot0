@@ -126,15 +126,15 @@ func HandlePCConnect(w http.ResponseWriter, r *http.Request) {
 			}
 
 		case "upload_file":
-			// Relay upload request to user
+			// This message is coming from PC to user (response), relay it
 			if userConn, exists := ActiveUserConnections[pin]; exists {
-				log.Printf("📤 Relaying upload request to user for PIN: %s", pin)
+				log.Printf("📤 Relaying upload response to user for PIN: %s", pin)
 				err := userConn.WriteMessage(websocket.TextMessage, raw)
 				if err != nil {
-					log.Printf("❌ Failed to relay upload_file to user for PIN %s: %v", pin, err)
+					log.Printf("❌ Failed to relay upload response to user for PIN %s: %v", pin, err)
 				}
 			} else {
-				log.Printf("⚠️ No user connected for upload request, PIN: %s", pin)
+				log.Printf("⚠️ No user connected for upload response, PIN: %s", pin)
 			}
 
 		case "upload_response":
@@ -161,5 +161,27 @@ func HandlePCConnect(w http.ResponseWriter, r *http.Request) {
 				log.Printf("⚠️ No user connected for %s message, PIN: %s", msg.Type, pin)
 			}
 		}
+	}
+}
+
+// Add a function to handle messages from user to PC
+func relayUserToPC(userConn, pcConn *websocket.Conn, pin string) {
+	for {
+		msgType, msg, err := userConn.ReadMessage()
+		if err != nil {
+			log.Printf("🔌 User disconnected for PIN %s: %v", pin, err)
+			break
+		}
+
+		log.Printf("📨 Received message from user for PIN %s: %s", pin, string(msg))
+
+		// Relay the message to PC
+		err = pcConn.WriteMessage(msgType, msg)
+		if err != nil {
+			log.Printf("❌ Failed to relay message to PC for PIN %s: %v", pin, err)
+			break
+		}
+
+		log.Printf("✅ Message relayed to PC for PIN: %s", pin)
 	}
 }

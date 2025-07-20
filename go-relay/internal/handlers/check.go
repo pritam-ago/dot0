@@ -17,6 +17,11 @@ type CheckPinResponse struct {
 	ErrorMessage string    `json:"error,omitempty"`
 }
 
+type GetBaseDirResponse struct {
+	BaseDirectory string `json:"base_directory,omitempty"`
+	ErrorMessage  string `json:"error,omitempty"`
+}
+
 func HandleCheckPin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -54,6 +59,46 @@ func HandleCheckPin(w http.ResponseWriter, r *http.Request) {
 		Valid:       true,
 		ExpiresAt:   session.ExpiresAt,
 		PCConnected: session.PCConnected,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+func HandleGetBaseDir(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract PIN from URL
+	pin := strings.TrimPrefix(r.URL.Path, "/get-base-dir/")
+	if pin == "" {
+		http.Error(w, "PIN is required", http.StatusBadRequest)
+		return
+	}
+
+	session, err := models.GetSession(db.DB, pin)
+	if err != nil {
+		resp := GetBaseDirResponse{
+			ErrorMessage: "PIN not found",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	if session.BaseDirectory == nil {
+		resp := GetBaseDirResponse{
+			ErrorMessage: "Base directory not set",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	resp := GetBaseDirResponse{
+		BaseDirectory: *session.BaseDirectory,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
