@@ -19,16 +19,45 @@ function App() {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [ws, setWs] = useState<WebSocket | null>(null);
 
+  // Register PIN with relay server
+  const registerPin = async (pin: string): Promise<boolean> => {
+    try {
+      console.log("🔍 Registering PIN with relay server:", pin);
+      const response = await fetch('http://localhost:8080/register-pin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ pin }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Failed to register PIN:", response.status, errorText);
+        return false;
+      }
+
+      const result = await response.json();
+      console.log("✅ PIN registered successfully:", result);
+      return true;
+    } catch (error) {
+      console.error("❌ Error registering PIN:", error);
+      return false;
+    }
+  };
+
   // Connect to relay server
   const connectToRelay = async (pin: string, baseDir: string) => {
+    console.log("🔍 Connecting to relay server with PIN:", pin);
     const relayUrl = `ws://localhost:8080/connect-pc/${pin}`;
     const socket = new WebSocket(relayUrl);
     
     socket.onopen = () => {
-      console.log("Connected to relay server");
+      console.log("✅ Connected to relay server");
       setIsConnected(true);
       
       // Register base directory
+      console.log("📂 Registering base directory:", baseDir);
       socket.send(JSON.stringify({
         type: "register_base_dir",
         data: { path: baseDir }
@@ -41,8 +70,12 @@ function App() {
     };
 
     socket.onclose = () => {
-      console.log("Disconnected from relay server");
+      console.log("🔌 Disconnected from relay server");
       setIsConnected(false);
+    };
+
+    socket.onerror = (error) => {
+      console.error("❌ WebSocket error:", error);
     };
 
     setWs(socket);
@@ -137,34 +170,53 @@ function App() {
   };
 
   async function selectFolder() {
-    const folder = await open({
-      directory: true,
-      multiple: false,
-    });
-  
-    if (folder) {
-      console.log("Selected folder path:", folder);
-      setSelectedFolder(folder);
-      
-      // Generate PIN and connect to relay
-      const newPin = await invoke("generate_pin") as string;
-      setPin(newPin);
-      
-      // Start local file server
-      await invoke('start_server', { folder });
-      
-      // Connect to relay server
-      await connectToRelay(newPin, folder);
-      
-      // Send initial file listing
-      if (ws) {
-        ws.send(JSON.stringify({
-          type: "list_files",
-          data: { path: folder }
-        }));
+    try {
+      const folder = await open({
+        directory: true,
+        multiple: false,
+      });
+    
+      if (folder) {
+        console.log("📁 Selected folder path:", folder);
+        setSelectedFolder(folder);
+        
+        // Generate PIN and connect to relay
+        const newPin = await invoke("generate_pin") as string;
+        console.log("🔍 Generated PIN:", newPin);
+        setPin(newPin);
+        
+        // Start local file server
+        console.log("🌐 Starting local file server...");
+        await invoke('start_server', { folder });
+        console.log("✅ Local file server started");
+        
+        // Register PIN with relay server
+        console.log("🔍 Attempting to register PIN with relay server...");
+        const registrationSuccess = await registerPin(newPin);
+        if (!registrationSuccess) {
+          console.error("❌ Failed to register PIN, cannot proceed with connection");
+          alert("Failed to register PIN with relay server. Please check if the relay server is running on localhost:8080 and try again.");
+          return;
+        }
+        
+        console.log("✅ PIN registered successfully, connecting to relay...");
+        // Connect to relay server
+        await connectToRelay(newPin, folder);
+        
+        // Send initial file listing
+        if (ws) {
+          console.log("📋 Sending initial file listing...");
+          ws.send(JSON.stringify({
+            type: "list_files",
+            data: { path: folder }
+          }));
+        }
+      } else {
+        console.log("User cancelled folder selection");
       }
-    } else {
-      console.log("User cancelled folder selection");
+    } catch (error) {
+      console.error("❌ Error in selectFolder:", error);
+      alert("An error occurred while setting up the connection. Please try again.");
     }
   }
 
