@@ -12,6 +12,8 @@ type Session struct {
 	ExpiresAt      time.Time
 	LastConnected  time.Time
 	PCConnected    bool
+	UserConnected  bool
+	BaseDirectory *string
 }
 
 func CreateSession(db *gorm.DB, pin string) (*Session, error) {
@@ -48,4 +50,16 @@ func UpdatePCConnectionStatus(db *gorm.DB, pin string, connected bool) error {
 			"pc_connected":   connected,
 			"last_connected": time.Now(),
 		}).Error
+}
+
+func UpdateBaseDirectory(db *gorm.DB, pin string, path string) error {
+	return db.Model(&Session{}).
+		Where("pin = ?", pin).
+		Update("base_directory", path).Error
+}
+
+func MarkUserConnected(db *gorm.DB, pin string, connected bool) error {
+	return db.Model(&Session{}).
+		Where("pin = ?", pin).
+		Update("user_connected", connected).Error
 }

@@ -95,6 +95,93 @@ button {
   margin-right: 5px;
 }
 
+/* New styles for file browser */
+.status-section {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 10px;
+  margin: 20px 0;
+  text-align: left;
+}
+
+.status-section p {
+  margin: 5px 0;
+}
+
+.controls {
+  margin: 20px 0;
+}
+
+.btn.primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.btn.primary:hover {
+  transform: translateY(-2px);
+}
+
+.file-browser {
+  background: white;
+  border-radius: 10px;
+  padding: 20px;
+  margin: 20px 0;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  text-align: left;
+}
+
+.file-browser h2 {
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 1.2em;
+}
+
+.file-list {
+  display: grid;
+  gap: 10px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.file-item:hover {
+  background: #e9ecef;
+}
+
+.file-icon {
+  font-size: 20px;
+  margin-right: 12px;
+}
+
+.file-name {
+  flex: 1;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.file-name:hover {
+  color: #667eea;
+}
+
+.file-size {
+  color: #6c757d;
+  font-size: 0.9em;
+  margin-left: 10px;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f6f6f6;
@@ -112,5 +199,22 @@ button {
   }
   button:active {
     background-color: #0f0f0f69;
+  }
+
+  .file-browser {
+    background: #1a1a1a;
+    color: #f6f6f6;
+  }
+
+  .file-item {
+    background: #2a2a2a;
+  }
+
+  .file-item:hover {
+    background: #3a3a3a;
+  }
+
+  .status-section {
+    background: #2a2a2a;
   }
 }

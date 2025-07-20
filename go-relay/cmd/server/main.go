@@ -25,7 +25,7 @@ func main() {
 	http.HandleFunc("/check-pin/", handlers.HandleCheckPin)
 	http.HandleFunc("/connect-pc/", ws.HandlePCConnect)
 	http.HandleFunc("/connect-user/", ws.HandleUserConnect)
-	
+
 	log.Println("🧠 Relay server running on :8080")
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {

@@ -23,3 +23,6 @@ Thumbs.db
 
 # Database files
 sessions.db 
+
+#environment variables
+.env
