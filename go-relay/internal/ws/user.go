@@ -13,19 +13,23 @@ func relayMessages(from, to *websocket.Conn, tag string) {
 	for {
 		msgType, msg, err := from.ReadMessage()
 		if err != nil {
-			log.Println("🔌 Disconnected ["+tag+"]:", err)
+			log.Printf("🔌 Disconnected [%s]: %v", tag, err)
 			from.Close()
 			to.Close()
 			break
 		}
 
+		log.Printf("📤 Relaying message [%s]: %s", tag, string(msg))
+
 		err = to.WriteMessage(msgType, msg)
 		if err != nil {
-			log.Println("❌ Write error ["+tag+"]:", err)
+			log.Printf("❌ Write error [%s]: %v", tag, err)
 			from.Close()
 			to.Close()
 			break
 		}
+
+		log.Printf("✅ Message relayed successfully [%s]", tag)
 	}
 }
 

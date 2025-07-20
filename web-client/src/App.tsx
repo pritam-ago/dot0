@@ -149,18 +149,34 @@ function App() {
       const reader = new FileReader();
       reader.onload = () => {
         if (ws && ws.readyState === WebSocket.OPEN) {
-          console.log("📤 Sending upload request for:", file.name);
+          // Create proper path for the target file
+          const targetPath = currentPath === '/' ? file.name : `${currentPath}/${file.name}`;
+          console.log("📤 Sending upload request for:", file.name, "to:", targetPath);
+          
           ws.send(JSON.stringify({
             type: 'upload_file',
             data: {
-              path: currentPath + '/' + file.name,
+              path: targetPath,
               content: Array.from(new Uint8Array(reader.result as ArrayBuffer)),
               filename: file.name
             }
           }));
+        } else {
+          console.error("❌ WebSocket not connected, cannot upload file");
+          alert("Connection lost. Please reconnect and try again.");
+          setIsUploading(false);
+          setUploadProgress(0);
         }
         setUploadProgress(((index + 1) / files.length) * 100);
       };
+      
+      reader.onerror = () => {
+        console.error("❌ Failed to read file:", file.name);
+        alert(`Failed to read file: ${file.name}`);
+        setIsUploading(false);
+        setUploadProgress(0);
+      };
+      
       reader.readAsArrayBuffer(file);
     });
   };
@@ -168,13 +184,16 @@ function App() {
   const handleUploadResponse = (data: any) => {
     console.log("📥 Received upload response:", data);
     if (data.success) {
+      console.log("✅ Upload successful for:", data.path);
       setIsUploading(false);
       setUploadProgress(0);
+      // Refresh the file list to show the new file
       requestFileList(currentPath);
     } else {
+      console.error("❌ Upload failed:", data.error);
       setIsUploading(false);
       setUploadProgress(0);
-      alert('Upload failed: ' + data.error);
+      alert(`Upload failed: ${data.error || 'Unknown error'}`);
     }
   };
 

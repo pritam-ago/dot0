@@ -50,10 +50,12 @@ function App() {
   const connectToRelay = async (pin: string, baseDir: string) => {
     console.log("🔍 Connecting to relay server with PIN:", pin);
     const relayUrl = `ws://localhost:8080/connect-pc/${pin}`;
+    console.log("🔗 WebSocket URL:", relayUrl);
     const socket = new WebSocket(relayUrl);
     
     socket.onopen = () => {
       console.log("✅ Connected to relay server");
+      console.log("🔗 WebSocket readyState:", socket.readyState);
       setIsConnected(true);
       
       // Register base directory
@@ -62,20 +64,42 @@ function App() {
         type: "register_base_dir",
         data: { path: baseDir }
       }));
+      
+      // Send a test message to verify connection
+      console.log("🧪 Sending test message to verify connection");
+      socket.send(JSON.stringify({
+        type: "test_message",
+        data: { message: "PC app is ready to receive messages" }
+      }));
     };
 
     socket.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      handleRelayMessage(message);
+      console.log("📨 Received message from relay server:", event.data);
+      console.log("🔗 WebSocket readyState:", socket.readyState);
+      console.log("🔗 WebSocket connected:", socket.readyState === WebSocket.OPEN);
+      console.log("🔗 Is connected state:", isConnected);
+      
+      try {
+        const message = JSON.parse(event.data);
+        console.log("📨 Parsed message:", message);
+        console.log("📨 Message type:", message.type);
+        console.log("📨 Message data:", message.data);
+        handleRelayMessage(message);
+      } catch (error) {
+        console.error("❌ Failed to parse message from relay:", error);
+        console.error("❌ Raw message data:", event.data);
+      }
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
       console.log("🔌 Disconnected from relay server");
+      console.log("🔌 Close event:", event);
       setIsConnected(false);
     };
 
     socket.onerror = (error) => {
       console.error("❌ WebSocket error:", error);
+      console.log("🔗 WebSocket readyState:", socket.readyState);
     };
 
     setWs(socket);
@@ -83,33 +107,64 @@ function App() {
 
   const handleRelayMessage = (message: any) => {
     console.log("📨 Received relay message:", message.type, message.data);
+    console.log("📨 Processing message type:", message.type);
+    console.log("📨 Full message object:", JSON.stringify(message, null, 2));
+    
     switch (message.type) {
       case "list_files":
+        console.log("📋 Handling list_files message");
         handleListFiles(message.data.path);
         break;
       case "download_file":
+        console.log("📥 Handling download_file message");
         handleDownloadFile(message.data.path);
         break;
       case "upload_file":
+        console.log("📤 Handling upload_file message");
+        console.log("📤 Upload data received:", {
+          path: message.data.path,
+          filename: message.data.filename,
+          contentLength: message.data.content ? message.data.content.length : 0,
+          contentType: typeof message.data.content
+        });
         handleUploadFile(message.data);
         break;
       case "delete_file":
+        console.log("🗑️ Handling delete_file message");
         handleDeleteFile(message.data.path);
+        break;
+      case "test_message":
+        console.log("🧪 Received test message:", message.data);
+        break;
+      default:
+        console.log("❓ Unknown message type:", message.type);
+        console.log("❓ Full message:", message);
         break;
     }
   };
 
   const handleListFiles = async (path: string) => {
     try {
+      console.log("📋 Listing files for path:", path);
       const files = await invoke("list_files", { path }) as FileInfo[];
+      console.log("📁 Found files:", files.length);
+      
+      // Update local file list
+      setFiles(files);
+      
       if (ws) {
         ws.send(JSON.stringify({
           type: "list_files",
           data: { files, path }
         }));
       }
+      
+      // Update current path if this was a navigation request
+      if (path !== currentPath) {
+        setCurrentPath(path);
+      }
     } catch (error) {
-      console.error("Failed to list files:", error);
+      console.error("❌ Failed to list files:", error);
     }
   };
 
@@ -134,10 +189,29 @@ function App() {
   const handleUploadFile = async (data: any) => {
     try {
       console.log("📤 Processing upload request for:", data.path);
+      console.log("📊 Upload data:", {
+        path: data.path,
+        filename: data.filename,
+        contentLength: data.content ? data.content.length : 0
+      });
+      
+      // Convert content to Uint8Array if it's an array of numbers
+      let content: Uint8Array;
+      if (Array.isArray(data.content)) {
+        content = new Uint8Array(data.content);
+      } else if (data.content instanceof ArrayBuffer) {
+        content = new Uint8Array(data.content);
+      } else {
+        throw new Error("Invalid content format");
+      }
+      
+      console.log("📁 Writing file to:", data.path);
       await invoke("write_file", { 
         path: data.path, 
-        content: data.content 
+        content: Array.from(content) // Convert back to array for Tauri
       });
+      
+      console.log("✅ File written successfully");
       
       if (ws) {
         ws.send(JSON.stringify({
@@ -147,9 +221,10 @@ function App() {
       }
       
       // Refresh file list
+      console.log("🔄 Refreshing file list...");
       handleListFiles(currentPath);
     } catch (error) {
-      console.error("Failed to write file:", error);
+      console.error("❌ Failed to write file:", error);
       if (ws) {
         ws.send(JSON.stringify({
           type: "upload_response",
@@ -203,9 +278,10 @@ function App() {
         // Connect to relay server
         await connectToRelay(newPin, folder);
         
-        // Send initial file listing
+        // Set initial path and send initial file listing
+        setCurrentPath(folder);
+        console.log("📋 Sending initial file listing for:", folder);
         if (ws) {
-          console.log("📋 Sending initial file listing...");
           ws.send(JSON.stringify({
             type: "list_files",
             data: { path: folder }
