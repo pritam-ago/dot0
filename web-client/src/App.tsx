@@ -22,6 +22,7 @@ function App() {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<string>('Not connected');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const connect = () => {
@@ -30,10 +31,17 @@ function App() {
       return;
     }
 
-    const relayUrl = `ws://localhost:8080/connect-user/${pin}`;
+    // Use the current hostname instead of hardcoded localhost
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname;
+    const relayUrl = `${protocol}//${host}:8080/connect-user/${pin}`;
+    
+    setConnectionStatus('Connecting...');
+    
     const socket = new WebSocket(relayUrl);
 
     socket.onopen = () => {
+      setConnectionStatus('Connected');
       setIsConnected(true);
       requestFileList('/');
     };
@@ -43,12 +51,13 @@ function App() {
       handleMessage(message);
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event) => {
+      setConnectionStatus(`Disconnected (${event.code})`);
       setIsConnected(false);
     };
 
     socket.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      setConnectionStatus('Connection failed');
       setIsConnected(false);
     };
 
@@ -57,6 +66,7 @@ function App() {
 
   const disconnect = () => {
     if (ws) {
+      setConnectionStatus('Disconnecting...');
       ws.close();
       setWs(null);
     }
@@ -151,7 +161,6 @@ function App() {
         if (ws && ws.readyState === WebSocket.OPEN) {
           // Create proper path for the target file
           const targetPath = currentPath === '/' ? file.name : `${currentPath}/${file.name}`;
-          console.log("📤 Sending upload request for:", file.name, "to:", targetPath);
           
           ws.send(JSON.stringify({
             type: 'upload_file',
@@ -162,7 +171,6 @@ function App() {
             }
           }));
         } else {
-          console.error("❌ WebSocket not connected, cannot upload file");
           alert("Connection lost. Please reconnect and try again.");
           setIsUploading(false);
           setUploadProgress(0);
@@ -171,7 +179,6 @@ function App() {
       };
       
       reader.onerror = () => {
-        console.error("❌ Failed to read file:", file.name);
         alert(`Failed to read file: ${file.name}`);
         setIsUploading(false);
         setUploadProgress(0);
@@ -182,18 +189,15 @@ function App() {
   };
 
   const handleUploadResponse = (data: any) => {
-    console.log("📥 Received upload response:", data);
     if (data.success) {
-      console.log("✅ Upload successful for:", data.path);
       setIsUploading(false);
       setUploadProgress(0);
       // Refresh the file list to show the new file
       requestFileList(currentPath);
     } else {
-      console.error("❌ Upload failed:", data.error);
+      alert(`Upload failed: ${data.error || 'Unknown error'}`);
       setIsUploading(false);
       setUploadProgress(0);
-      alert(`Upload failed: ${data.error || 'Unknown error'}`);
     }
   };
 
@@ -215,6 +219,15 @@ function App() {
       <main className="App-main">
         {!isConnected ? (
           <div className="connection-form">
+            <div className="instructions">
+              <h3>📋 How to Connect:</h3>
+              <ol>
+                <li>Open the PC app on your computer</li>
+                <li>Click "Select Folder to Share"</li>
+                <li>Choose a folder and note the PIN</li>
+                <li>Enter the PIN below and click Connect</li>
+              </ol>
+            </div>
             <div className="input-group">
               <input
                 type="text"

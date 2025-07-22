@@ -34,6 +34,17 @@ var ActivePCConnections = make(map[string]*websocket.Conn)
 var ActiveUserConnections = make(map[string]*websocket.Conn)
 
 func HandlePCConnect(w http.ResponseWriter, r *http.Request) {
+	// Add CORS headers for WebSocket connections
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+	// Handle preflight requests
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	pin := r.URL.Path[len("/connect-pc/"):]
 	log.Printf("🔍 PC connection attempt for PIN: %s", pin)
 

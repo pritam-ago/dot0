@@ -43,6 +43,87 @@ body {
   width: 100%;
 }
 
+/* Debug Panel */
+.debug-panel {
+  background: #f8f9fa;
+  border: 2px solid #dee2e6;
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+}
+
+.debug-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.debug-header h3 {
+  margin: 0;
+  color: #495057;
+  font-size: 1rem;
+}
+
+.clear-debug-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.clear-debug-btn:hover {
+  background: #5a6268;
+}
+
+.connection-status {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.status-text {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.status-text.connected {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-text.disconnected {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.debug-messages {
+  max-height: 200px;
+  overflow-y: auto;
+  background: white;
+  border-radius: 5px;
+  padding: 0.5rem;
+  border: 1px solid #dee2e6;
+}
+
+.debug-message {
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #f8f9fa;
+  word-wrap: break-word;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.debug-message:last-child {
+  border-bottom: none;
+}
+
 /* Connection Form */
 .connection-form {
   background: white;
@@ -52,6 +133,32 @@ body {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   max-width: 500px;
   margin: 0 auto;
+}
+
+.instructions {
+  text-align: left;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 10px;
+  border-left: 4px solid #4facfe;
+}
+
+.instructions h3 {
+  margin: 0 0 1rem 0;
+  color: #495057;
+  font-size: 1.1rem;
+}
+
+.instructions ol {
+  margin: 0;
+  padding-left: 1.5rem;
+  color: #6c757d;
+  line-height: 1.6;
+}
+
+.instructions li {
+  margin-bottom: 0.5rem;
 }
 
 .input-group {
@@ -296,6 +403,23 @@ body {
   
   .App-main {
     padding: 1rem;
+  }
+  
+  .debug-panel {
+    font-size: 0.8rem;
+    padding: 0.75rem;
+  }
+  
+  .debug-header h3 {
+    font-size: 0.9rem;
+  }
+  
+  .debug-messages {
+    max-height: 150px;
+  }
+  
+  .debug-message {
+    font-size: 0.75rem;
   }
   
   .connection-form {

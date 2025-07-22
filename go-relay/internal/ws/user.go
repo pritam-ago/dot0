@@ -34,6 +34,17 @@ func relayMessages(from, to *websocket.Conn, tag string) {
 }
 
 func HandleUserConnect(w http.ResponseWriter, r *http.Request) {
+	// Add CORS headers for WebSocket connections
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+	// Handle preflight requests
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
 	pin := r.URL.Path[len("/connect-user/"):]
 	log.Printf("🔍 User connection attempt for PIN: %s", pin)
 
