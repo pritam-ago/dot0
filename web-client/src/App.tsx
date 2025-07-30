@@ -25,7 +25,7 @@ function App() {
   const [connectionStatus, setConnectionStatus] = useState<string>('Not connected');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const connect = () => {
+  const connect = () => {   
     if (pin.length !== 6) {
       alert('Please enter a 6-digit PIN');
       return;
@@ -212,7 +212,7 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>🌐 Remote File Access</h1>
+        <h1>Remote File Access</h1>
         <p>Access your files from anywhere in the world</p>
       </header>
 
@@ -220,7 +220,7 @@ function App() {
         {!isConnected ? (
           <div className="connection-form">
             <div className="instructions">
-              <h3>📋 How to Connect:</h3>
+              <h3>How to Connect:</h3>
               <ol>
                 <li>Open the PC app on your computer</li>
                 <li>Click "Select Folder to Share"</li>
@@ -264,7 +264,7 @@ function App() {
               onDragOver={handleDragOver}
               onClick={() => fileInputRef.current?.click()}
             >
-              <p>📁 Drag and drop files here or click to upload</p>
+              <p>Drag and drop files here or click to upload</p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -292,7 +292,7 @@ function App() {
                   className="file-item directory"
                   onClick={() => navigateToFolder(currentPath.split('/').slice(0, -1).join('/') || '/')}
                 >
-                  <span className="file-icon">📁</span>
+                  <span className="file-icon">DIR</span>
                   <span className="file-name">..</span>
                   <span className="file-details">Parent Directory</span>
                 </div>
@@ -311,7 +311,7 @@ function App() {
                     onClick={() => file.is_directory ? navigateToFolder(file.path) : null}
                   >
                     <span className="file-icon">
-                      {file.is_directory ? '📁' : '📄'}
+                      {file.is_directory ? 'DIR' : 'FILE'}
                     </span>
                     <span className="file-name">{file.name}</span>
                     <span className="file-details">

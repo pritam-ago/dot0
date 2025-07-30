@@ -26,7 +26,6 @@ function App() {
   const saveToLocalStorage = (key: string, value: string) => {
     try {
       localStorage.setItem(key, value);
-      console.log(`Saved to localStorage: ${key} = ${value}`);
     } catch (error) {
       console.error(`Failed to save to localStorage: ${key}`, error);
     }
@@ -35,7 +34,6 @@ function App() {
   const getFromLocalStorage = (key: string): string | null => {
     try {
       const value = localStorage.getItem(key);
-      console.log(`Retrieved from localStorage: ${key} = ${value}`);
       return value;
     } catch (error) {
       console.error(`Failed to get from localStorage: ${key}`, error);
@@ -49,7 +47,6 @@ function App() {
     const savedFolder = getFromLocalStorage('pc_app_folder');
     
     if (savedPin && savedFolder) {
-      console.log("Loading saved data from localStorage:", { pin: savedPin, folder: savedFolder });
       setPin(savedPin);
       setSelectedFolder(savedFolder);
       setSessionData({ pin: savedPin, folder: savedFolder });
@@ -64,7 +61,6 @@ function App() {
   // Register PIN with relay server
   const registerPin = async (pin: string): Promise<boolean> => {
     try {
-      console.log("Registering PIN with relay server:", pin);
       const response = await fetch('http://localhost:8080/register-pin', {
         method: 'POST',
         headers: {
@@ -80,7 +76,6 @@ function App() {
       }
 
       const result = await response.json();
-      console.log("PIN registered successfully:", result);
       return true;
     } catch (error) {
       console.error("Error registering PIN:", error);
@@ -90,12 +85,10 @@ function App() {
 
   // Connect to relay server
   const connectToRelay = async (pin: string, baseDir: string) => {
-    console.log("Connecting to relay server with PIN:", pin);
     const relayUrl = `ws://localhost:8080/connect-pc/${pin}`;
     const socket = new WebSocket(relayUrl);
     
     socket.onopen = () => {
-      console.log("Connected to relay server");
       setIsConnected(true);
       
       // Register base directory
@@ -109,12 +102,9 @@ function App() {
         type: "test_message",
         data: { message: "PC app is ready to receive messages" }
       }));
-      
-      console.log("WebSocket connection established and ready");
     };
 
     socket.onmessage = (event) => {
-      console.log("Received message from relay server:", event.data);
       
       try {
         const message = JSON.parse(event.data);
@@ -125,7 +115,6 @@ function App() {
     };
 
     socket.onclose = (event) => {
-      console.log("Disconnected from relay server");
       setIsConnected(false);
     };
 
@@ -137,9 +126,6 @@ function App() {
   };
 
   const handleRelayMessage = (message: any) => {
-    console.log("Processing message type:", message.type);
-    console.log("Current app state - PIN:", pin, "SelectedFolder:", selectedFolder, "IsConnected:", isConnected);
-    console.log("Session data:", sessionData);
     
     switch (message.type) {
       case "list_files":
@@ -155,14 +141,7 @@ function App() {
         const currentPin = storedPin || sessionData?.pin || pin;
         const currentFolder = storedFolder || sessionData?.folder || selectedFolder;
         
-        console.log("Upload check - Stored PIN:", storedPin, "Stored Folder:", storedFolder);
-        console.log("Upload check - Session PIN:", sessionData?.pin, "Session Folder:", sessionData?.folder);
-        console.log("Upload check - State PIN:", pin, "State Folder:", selectedFolder);
-        console.log("Upload check - Final PIN:", currentPin, "Final Folder:", currentFolder);
-        
         if (!currentPin || !currentFolder) {
-          console.error("Cannot handle upload - app not properly initialized");
-          console.error("Final PIN:", currentPin, "Final Folder:", currentFolder);
           if (ws) {
             ws.send(JSON.stringify({
               type: "upload_response",
@@ -180,10 +159,8 @@ function App() {
         handleDeleteFile(message.data.path);
         break;
       case "test_message":
-        console.log("Received test message:", message.data);
         break;
       default:
-        console.log("Unknown message type:", message.type);
         break;
     }
   };
@@ -192,7 +169,6 @@ function App() {
     try {
       // For list files, use the selectedFolder directly if path is empty or just "/"
       const fullPath = (path === "/" || path === "" || path === selectedFolder) ? selectedFolder : await join(selectedFolder, path);
-      console.log("Listing files for path:", fullPath);
       const files = await invoke("list_files", { path: fullPath }) as FileInfo[];
       
       // Update local file list
@@ -235,9 +211,6 @@ function App() {
 
   const handleUploadFile = async (data: any, currentPin?: string, currentFolder?: string) => {
     try {
-      console.log("Processing upload request for:", data.path);
-      console.log("Current PIN state:", pin);
-      console.log("Passed PIN:", currentPin, "Passed Folder:", currentFolder);
       
       // Always get base directory from database
       let baseDir = null;
@@ -264,7 +237,6 @@ function App() {
           console.error("Error fetching base directory from database:", error);
         }
       } else {
-        console.log("PIN not in state, using selectedFolder as fallback:", folderToUse);
         if (folderToUse) {
           baseDir = folderToUse;
         } else {
@@ -310,8 +282,6 @@ function App() {
         content: Array.from(content) // Convert back to array for Tauri
       });
       
-      console.log("File written successfully");
-      
       if (ws) {
         ws.send(JSON.stringify({
           type: "upload_response",
@@ -351,15 +321,11 @@ function App() {
       });
     
       if (folder) {
-        console.log("Selected folder path:", folder);
         setSelectedFolder(folder);
-        console.log("selectedFolder state set to:", folder);
         
         // Generate PIN and connect to relay
         const newPin = await invoke("generate_pin") as string;
-        console.log("Generated PIN:", newPin);
         setPin(newPin);
-        console.log("PIN state set to:", newPin);
         
         // Save to localStorage for immediate access
         saveToLocalStorage('pc_app_pin', newPin);
@@ -367,12 +333,9 @@ function App() {
         
         // Set session data for immediate access
         setSessionData({ pin: newPin, folder });
-        console.log("Session data set:", { pin: newPin, folder });
         
         // Start local file server
-        console.log("Starting local file server...");
         await invoke('start_server', { folder });
-        console.log("Local file server started");
         
         // Register PIN with relay server
         const registrationSuccess = await registerPin(newPin);
@@ -382,7 +345,6 @@ function App() {
           return;
         }
         
-        console.log("PIN registered successfully, connecting to relay...");
         // Connect to relay server
         await connectToRelay(newPin, folder);
         
@@ -391,7 +353,6 @@ function App() {
         
         // Set initial path and send initial file listing
         setCurrentPath(folder);
-        console.log("App fully initialized - PIN:", newPin, "SelectedFolder:", folder, "IsConnected:", true);
         
         if (ws) {
           ws.send(JSON.stringify({
@@ -400,7 +361,6 @@ function App() {
           }));
         }
       } else {
-        console.log("User cancelled folder selection");
       }
     } catch (error) {
       console.error("Error in selectFolder:", error);
@@ -431,7 +391,7 @@ function App() {
       <h1>Remote File Access - PC Controller</h1>
 
       <div className="status-section">
-        <p>Status: {isConnected ? "🟢 Connected" : "🔴 Disconnected"}</p>
+        <p>Status: {isConnected ? "Connected" : "Disconnected"}</p>
         {pin && <p>PIN: <strong>{pin}</strong></p>}
         {selectedFolder && <p>Sharing: {selectedFolder}</p>}
       </div>
@@ -449,7 +409,7 @@ function App() {
             {files.map((file, index) => (
               <div key={index} className="file-item">
                 <span className="file-icon">
-                  {file.isDirectory ? "📁" : "📄"}
+                  {file.isDirectory ? "DIR" : "FILE"}
                 </span>
                 <span 
                   className="file-name"

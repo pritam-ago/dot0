@@ -45,7 +45,7 @@ func main() {
 	http.HandleFunc("/connect-pc/", corsMiddleware(ws.HandlePCConnect))
 	http.HandleFunc("/connect-user/", corsMiddleware(ws.HandleUserConnect))
 
-	log.Println("🧠 Relay server running on :8080")
+	log.Println("Relay server running on :8080")
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
 		log.Fatal("ListenAndServe:", err)
