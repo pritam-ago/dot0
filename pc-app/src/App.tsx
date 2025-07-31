@@ -61,7 +61,8 @@ function App() {
   // Register PIN with relay server
   const registerPin = async (pin: string): Promise<boolean> => {
     try {
-      const response = await fetch('http://localhost:8080/register-pin', {
+      const relayUrl = import.meta.env.VITE_RELAY_SERVER_URL || 'http://localhost:8080';
+      const response = await fetch(`${relayUrl}/register-pin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -85,7 +86,8 @@ function App() {
 
   // Connect to relay server
   const connectToRelay = async (pin: string, baseDir: string) => {
-    const relayUrl = `ws://localhost:8080/connect-pc/${pin}`;
+    const wsRelayUrl = import.meta.env.VITE_WS_RELAY_SERVER_URL || 'ws://localhost:8080';
+    const relayUrl = `${wsRelayUrl}/connect-pc/${pin}`;
     const socket = new WebSocket(relayUrl);
     
     socket.onopen = () => {
@@ -222,7 +224,8 @@ function App() {
       // Try to get PIN from state, or use selectedFolder as fallback
       if (pinToUse) {
         try {
-          const response = await fetch(`http://localhost:8080/get-base-dir/${pinToUse}`);
+          const relayUrl = import.meta.env.VITE_RELAY_SERVER_URL || 'http://localhost:8080';
+          const response = await fetch(`${relayUrl}/get-base-dir/${pinToUse}`);
           if (response.ok) {
             const result = await response.json();
             if (result.base_directory) {
@@ -341,7 +344,8 @@ function App() {
         const registrationSuccess = await registerPin(newPin);
         if (!registrationSuccess) {
           console.error("Failed to register PIN, cannot proceed with connection");
-          alert("Failed to register PIN with relay server. Please check if the relay server is running on localhost:8080 and try again.");
+          const relayUrl = import.meta.env.VITE_RELAY_SERVER_URL || 'http://localhost:8080';
+          alert(`Failed to register PIN with relay server. Please check if the relay server is running on ${relayUrl} and try again.`);
           return;
         }
         

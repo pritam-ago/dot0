@@ -3,7 +3,9 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/pritam-ago/go-relay/internal/db"
 	"github.com/pritam-ago/go-relay/internal/handlers"
 	"github.com/pritam-ago/go-relay/internal/ws"
@@ -28,6 +30,19 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
+	// Load .env file from project root (two directories up from cmd/server)
+	if err := godotenv.Load("../../.env"); err != nil {
+		// Try loading from current directory as fallback
+		if err := godotenv.Load(); err != nil {
+			log.Println("No .env file found, using system environment variables")
+		}
+	}
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		log.Println("PORT not set, using default port 8080")
+		port = "8080"
+	}
 	db.Init()
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -45,8 +60,8 @@ func main() {
 	http.HandleFunc("/connect-pc/", corsMiddleware(ws.HandlePCConnect))
 	http.HandleFunc("/connect-user/", corsMiddleware(ws.HandleUserConnect))
 
-	log.Println("Relay server running on :8080")
-	err := http.ListenAndServe(":8080", nil)
+	log.Println("Relay server running on :" + port)
+	err := http.ListenAndServe(":"+port, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}

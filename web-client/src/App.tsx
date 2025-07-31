@@ -31,10 +31,15 @@ function App() {
       return;
     }
 
-    // Use the current hostname instead of hardcoded localhost
+    // Use environment variables or fallback to current hostname
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname;
-    const relayUrl = `${protocol}//${host}:8080/connect-user/${pin}`;
+    const wsHost = process.env.REACT_APP_WEBSOCKET_HOST || window.location.hostname;
+    const wsPort = process.env.REACT_APP_WEBSOCKET_PORT || '8080';
+    
+    // Build relay URL - don't include port if it's empty (for HTTPS/WSS)
+    const relayUrl = wsPort ? 
+      `${protocol}//${wsHost}:${wsPort}/connect-user/${pin}` :
+      `${protocol}//${wsHost}/connect-user/${pin}`;
     
     setConnectionStatus('Connecting...');
     
