@@ -33,13 +33,38 @@ function App() {
 
     // Use environment variables or fallback to current hostname
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsHost = process.env.REACT_APP_WEBSOCKET_HOST || window.location.hostname;
-    const wsPort = process.env.REACT_APP_WEBSOCKET_PORT || '8080';
     
-    // Build relay URL - don't include port if it's empty (for HTTPS/WSS)
-    const relayUrl = wsPort ? 
+    // For production, hardcode the relay server URL since environment variables might not work
+    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    
+    let wsHost, wsPort;
+    if (isProduction) {
+      // Production: connect directly to relay server
+      wsHost = 'dot0-go-relay.onrender.com';
+      wsPort = ''; // No port for HTTPS/WSS
+    } else {
+      // Development: use environment variables or localhost
+      wsHost = process.env.REACT_APP_WEBSOCKET_HOST || window.location.hostname;
+      wsPort = process.env.REACT_APP_WEBSOCKET_PORT;
+    }
+    
+    // Debug environment variables
+    console.log('Connection configuration:', {
+      isProduction,
+      hostname: window.location.hostname,
+      REACT_APP_WEBSOCKET_HOST: process.env.REACT_APP_WEBSOCKET_HOST,
+      REACT_APP_WEBSOCKET_PORT: process.env.REACT_APP_WEBSOCKET_PORT,
+      wsHost,
+      wsPort,
+      protocol
+    });
+    
+    // Build relay URL - don't include port if it's empty or undefined (for HTTPS/WSS)
+    const relayUrl = wsPort && wsPort.trim() !== '' ? 
       `${protocol}//${wsHost}:${wsPort}/connect-user/${pin}` :
       `${protocol}//${wsHost}/connect-user/${pin}`;
+    
+    console.log('Connecting to:', relayUrl);
     
     setConnectionStatus('Connecting...');
     
