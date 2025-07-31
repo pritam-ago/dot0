@@ -87,6 +87,20 @@ body {
   font-weight: 600;
 }
 
+.instructions .connection-status {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #e3f2fd;
+  border-radius: 5px;
+  border-left: 3px solid #2196f3;
+}
+
+.instructions .connection-status p {
+  margin: 0;
+  color: #1976d2;
+  font-size: 0.9rem;
+}
+
 .status-text {
   padding: 2px 8px;
   border-radius: 4px;

@@ -25,9 +25,50 @@ function App() {
   const [connectionStatus, setConnectionStatus] = useState<string>('Not connected');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const connect = () => {   
+  const checkPinExists = async (pin: string): Promise<{ exists: boolean; pcConnected?: boolean; error?: string }> => {
+    try {
+      const response = await fetch(`https://dot0-go-relay.onrender.com/check-pin/${pin}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return { 
+          exists: data.valid === true, 
+          pcConnected: data.pc_connected,
+          error: data.error
+        };
+      }
+      return { exists: false, error: 'Failed to check PIN' };
+    } catch (error) {
+      console.error('Error checking PIN:', error);
+      return { exists: false, error: 'Network error' };
+    }
+  };
+
+  const connect = async () => {   
     if (pin.length !== 6) {
       alert('Please enter a 6-digit PIN');
+      return;
+    }
+
+    setConnectionStatus('Checking PIN...');
+    
+    // Check if PIN exists first
+    const pinCheck = await checkPinExists(pin);
+    if (!pinCheck.exists) {
+      setConnectionStatus('PIN not found');
+      const errorMsg = pinCheck.error || 'PIN not found';
+      alert(`PIN check failed: ${errorMsg}\n\nPlease make sure:\n\n1. The PC app is running\n2. You entered the correct 6-digit PIN\n3. The PC app has registered the PIN`);
+      return;
+    }
+
+    if (!pinCheck.pcConnected) {
+      setConnectionStatus('PC not connected');
+      alert('PIN is valid but PC is not connected!\n\nPlease make sure:\n\n1. The PC app is running and connected\n2. The PC app has selected a folder to share\n3. Try refreshing the PC app connection');
       return;
     }
 
@@ -59,8 +100,62 @@ function App() {
 
     socket.onclose = (event) => {
       console.log('WebSocket connection closed:', event.code, event.reason);
-      setConnectionStatus(`Disconnected (${event.code})`);
+      
+      let errorMessage = 'Disconnected';
+      switch (event.code) {
+        case 1000:
+          errorMessage = 'Connection closed normally';
+          break;
+        case 1006:
+          errorMessage = 'Connection failed - PC not connected or PIN invalid';
+          break;
+        case 1002:
+          errorMessage = 'Protocol error';
+          break;
+        case 1003:
+          errorMessage = 'Unsupported data type';
+          break;
+        case 1005:
+          errorMessage = 'No status code provided';
+          break;
+        case 1007:
+          errorMessage = 'Invalid frame payload data';
+          break;
+        case 1008:
+          errorMessage = 'Policy violation';
+          break;
+        case 1009:
+          errorMessage = 'Message too big';
+          break;
+        case 1010:
+          errorMessage = 'Client terminating connection';
+          break;
+        case 1011:
+          errorMessage = 'Server error';
+          break;
+        case 1012:
+          errorMessage = 'Service restart';
+          break;
+        case 1013:
+          errorMessage = 'Try again later';
+          break;
+        case 1014:
+          errorMessage = 'Bad gateway';
+          break;
+        case 1015:
+          errorMessage = 'TLS handshake failed';
+          break;
+        default:
+          errorMessage = `Disconnected (Code: ${event.code})`;
+      }
+      
+      setConnectionStatus(errorMessage);
       setIsConnected(false);
+      
+      // Show user-friendly error message
+      if (event.code === 1006) {
+        alert('Connection failed! Please make sure:\n\n1. The PC app is running and connected\n2. You entered the correct 6-digit PIN\n3. The PC app has selected a folder to share');
+      }
     };
 
     socket.onerror = (error) => {
@@ -233,8 +328,12 @@ function App() {
                 <li>Open the PC app on your computer</li>
                 <li>Click "Select Folder to Share"</li>
                 <li>Choose a folder and note the PIN</li>
+                <li>Make sure the PC app shows "Connected" status</li>
                 <li>Enter the PIN below and click Connect</li>
               </ol>
+              <div className="connection-status">
+                <p><strong>Connection Status:</strong> {connectionStatus}</p>
+              </div>
             </div>
             <div className="input-group">
               <input
