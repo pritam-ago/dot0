@@ -1,13 +1,20 @@
 # Environment Configuration for PC App
 
-This document explains how to configure the PC App to use your deployed relay server URL instead of localhost.
+This document explains how to configure the PC App to use the deployed relay server at `dot0-go-relay.onrender.com`.
 
 ## Environment Variables
 
 The PC App uses the following environment variables:
 
-- `VITE_RELAY_SERVER_URL`: The HTTP URL of your deployed relay server (e.g., `https://your-domain.com`)
-- `VITE_WS_RELAY_SERVER_URL`: The WebSocket URL of your deployed relay server (e.g., `wss://your-domain.com`)
+- `VITE_RELAY_SERVER_URL`: The HTTP URL of your deployed relay server (e.g., `https://dot0-go-relay.onrender.com`)
+- `VITE_WS_RELAY_SERVER_URL`: The WebSocket URL of your deployed relay server (e.g., `wss://dot0-go-relay.onrender.com`)
+
+## Current Configuration
+
+The PC app is now configured to connect to the deployed relay server at `dot0-go-relay.onrender.com` by default. If environment variables are not set, it will automatically use:
+
+- HTTP: `https://dot0-go-relay.onrender.com`
+- WebSocket: `wss://dot0-go-relay.onrender.com`
 
 ## Setup Instructions
 
@@ -32,6 +39,13 @@ The PC App uses the following environment variables:
 
 ## Example Configurations
 
+### Current Production Configuration (Default)
+
+```env
+VITE_RELAY_SERVER_URL=https://dot0-go-relay.onrender.com
+VITE_WS_RELAY_SERVER_URL=wss://dot0-go-relay.onrender.com
+```
+
 ### Development (Localhost)
 
 ```env
@@ -39,18 +53,11 @@ VITE_RELAY_SERVER_URL=http://localhost:8080
 VITE_WS_RELAY_SERVER_URL=ws://localhost:8080
 ```
 
-### Production (Deployed Server)
+### Custom Production Server
 
 ```env
-VITE_RELAY_SERVER_URL=https://your-app.herokuapp.com
-VITE_WS_RELAY_SERVER_URL=wss://your-app.herokuapp.com
-```
-
-### Production with Custom Domain
-
-```env
-VITE_RELAY_SERVER_URL=https://api.yourdomain.com
-VITE_WS_RELAY_SERVER_URL=wss://api.yourdomain.com
+VITE_RELAY_SERVER_URL=https://your-custom-relay-server.com
+VITE_WS_RELAY_SERVER_URL=wss://your-custom-relay-server.com
 ```
 
 ## Building for Production

@@ -61,7 +61,10 @@ function App() {
   // Register PIN with relay server
   const registerPin = async (pin: string): Promise<boolean> => {
     try {
-      const relayUrl = import.meta.env.VITE_RELAY_SERVER_URL || 'http://localhost:8080';
+      // Use environment variable or fallback to deployed relay server
+      const relayUrl = import.meta.env.VITE_RELAY_SERVER_URL || 'https://dot0-go-relay.onrender.com';
+      console.log('Registering PIN with relay server:', relayUrl);
+      
       const response = await fetch(`${relayUrl}/register-pin`, {
         method: 'POST',
         headers: {
@@ -77,6 +80,7 @@ function App() {
       }
 
       const result = await response.json();
+      console.log('PIN registered successfully:', result);
       return true;
     } catch (error) {
       console.error("Error registering PIN:", error);
@@ -86,11 +90,14 @@ function App() {
 
   // Connect to relay server
   const connectToRelay = async (pin: string, baseDir: string) => {
-    const wsRelayUrl = import.meta.env.VITE_WS_RELAY_SERVER_URL || 'ws://localhost:8080';
+    // Use environment variable or fallback to deployed relay server
+    const wsRelayUrl = import.meta.env.VITE_WS_RELAY_SERVER_URL || 'wss://dot0-go-relay.onrender.com';
     const relayUrl = `${wsRelayUrl}/connect-pc/${pin}`;
+    console.log('Connecting to relay server:', relayUrl);
     const socket = new WebSocket(relayUrl);
     
     socket.onopen = () => {
+      console.log('WebSocket connection established with relay server');
       setIsConnected(true);
       
       // Register base directory
@@ -117,11 +124,13 @@ function App() {
     };
 
     socket.onclose = (event) => {
+      console.log('WebSocket connection closed:', event.code, event.reason);
       setIsConnected(false);
     };
 
     socket.onerror = (error) => {
-      console.error("WebSocket error:", error);
+      console.error("WebSocket connection error:", error);
+      setIsConnected(false);
     };
 
     setWs(socket);
@@ -224,7 +233,7 @@ function App() {
       // Try to get PIN from state, or use selectedFolder as fallback
       if (pinToUse) {
         try {
-          const relayUrl = import.meta.env.VITE_RELAY_SERVER_URL || 'http://localhost:8080';
+          const relayUrl = import.meta.env.VITE_RELAY_SERVER_URL || 'https://dot0-go-relay.onrender.com';
           const response = await fetch(`${relayUrl}/get-base-dir/${pinToUse}`);
           if (response.ok) {
             const result = await response.json();
@@ -344,8 +353,8 @@ function App() {
         const registrationSuccess = await registerPin(newPin);
         if (!registrationSuccess) {
           console.error("Failed to register PIN, cannot proceed with connection");
-          const relayUrl = import.meta.env.VITE_RELAY_SERVER_URL || 'http://localhost:8080';
-          alert(`Failed to register PIN with relay server. Please check if the relay server is running on ${relayUrl} and try again.`);
+          const relayUrl = import.meta.env.VITE_RELAY_SERVER_URL || 'https://dot0-go-relay.onrender.com';
+          alert(`Failed to register PIN with relay server at ${relayUrl}. Please check if the relay server is running and try again.`);
           return;
         }
         
