@@ -32,7 +32,7 @@ function App() {
     }
 
     // Use environment variables or fallback to current hostname
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const protocol = window.location.protocol === 'ws:';
     
     // For production, hardcode the relay server URL since environment variables might not work
     const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
