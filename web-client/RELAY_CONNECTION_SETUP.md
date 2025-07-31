@@ -1,69 +1,86 @@
 # Web Client - Relay Server Connection Setup
 
-This document explains how to configure the web client to connect to the deployed relay server.
+This document explains how the web client connects to the deployed relay server.
 
-## The Problem
+## Current Configuration
 
-The web client was trying to connect to `wss://dot0-web-client.onrender.com:8080/connect-user/302597`, which is incorrect because:
+The web client is now configured to directly connect to the deployed relay server at `dot0-go-relay.onrender.com` using WSS (secure WebSocket) protocol.
 
-- It's connecting to the web client's own domain instead of the relay server
-- It's using port 8080 with WSS (secure WebSocket), which is invalid
+## Connection Details
 
-## The Solution
+- **Relay Server**: `dot0-go-relay.onrender.com`
+- **Protocol**: WSS (WebSocket Secure)
+- **Endpoint**: `/connect-user/{pin}`
+- **Full URL**: `wss://dot0-go-relay.onrender.com/connect-user/{pin}`
 
-The web client should connect to the relay server domain: `wss://dot0-go-relay.onrender.com/connect-user/302597`
+## Key Features
 
-## Environment Configuration
+1. **Simplified Configuration**: No environment variables needed for basic connection
+2. **Secure Connection**: Always uses WSS protocol for production
+3. **Direct Connection**: Connects directly to the deployed relay server
+4. **Error Handling**: Improved error handling and logging
 
-### Production Environment (env.production)
+## Code Implementation
 
-```env
-REACT_APP_WEBSOCKET_HOST=dot0-go-relay.onrender.com
-REACT_APP_WEBSOCKET_PORT=
-```
-
-### Local Development (env.local)
-
-```env
-REACT_APP_WEBSOCKET_HOST=dot0-go-relay.onrender.com
-REACT_APP_WEBSOCKET_PORT=
-```
-
-## Key Changes Made
-
-1. **Updated WebSocket Host**: Changed from `your-app-name.onrender.com` to `dot0-go-relay.onrender.com`
-2. **Removed Port**: Set `REACT_APP_WEBSOCKET_PORT=` (empty) for HTTPS/WSS connections
-3. **Updated App.tsx**: Modified URL construction to handle empty port values
-
-## URL Construction Logic
-
-The web client now builds the WebSocket URL as follows:
+The connection is established in `App.tsx`:
 
 ```javascript
-const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-const wsHost = process.env.REACT_APP_WEBSOCKET_HOST || window.location.hostname;
-const wsPort = process.env.REACT_APP_WEBSOCKET_PORT || "8080";
+const connect = () => {
+  if (pin.length !== 6) {
+    alert("Please enter a 6-digit PIN");
+    return;
+  }
 
-// Build relay URL - don't include port if it's empty (for HTTPS/WSS)
-const relayUrl = wsPort
-  ? `${protocol}//${wsHost}:${wsPort}/connect-user/${pin}`
-  : `${protocol}//${wsHost}/connect-user/${pin}`;
+  // Always use WSS (secure WebSocket) for the deployed relay server
+  const relayHost = "dot0-go-relay.onrender.com";
+  const relayUrl = `wss://${relayHost}/connect-user/${pin}`;
+
+  console.log("Connecting to:", relayUrl);
+
+  const socket = new WebSocket(relayUrl);
+  // ... connection handling
+};
 ```
 
-## Result
+## Environment Variables
 
-- **Development**: `ws://localhost:8080/connect-user/{pin}` (if using local relay)
-- **Production**: `wss://dot0-go-relay.onrender.com/connect-user/{pin}` (no port specified)
+The web client no longer requires environment variables for basic functionality. However, if you need to override the relay server URL, you can set:
 
-## Deployment Notes
+```env
+REACT_APP_RELAY_HOST=your-custom-relay-server.com
+```
 
-When deploying to Render, make sure to:
+## Deployment
 
-1. Set the environment variables in the Render dashboard:
+When deploying to any platform (Render, Vercel, Netlify, etc.):
 
-   - `REACT_APP_WEBSOCKET_HOST=dot0-go-relay.onrender.com`
-   - `REACT_APP_WEBSOCKET_PORT=` (leave empty)
+1. **No Environment Variables Required**: The web client will work out of the box
+2. **Automatic WSS**: The connection automatically uses secure WebSocket
+3. **CORS Handling**: The relay server handles CORS for WebSocket connections
 
-2. Ensure your relay server (`dot0-go-relay.onrender.com`) is running and accessible
+## Testing
 
-3. Verify that the relay server accepts WebSocket connections on the `/connect-user/{pin}` endpoint
+To test the connection:
+
+1. Deploy the web client to your preferred platform
+2. Open the PC app and generate a PIN
+3. Enter the PIN in the web client
+4. Click "Connect" to establish the WebSocket connection
+
+## Troubleshooting
+
+If connection fails:
+
+1. **Check Relay Server**: Ensure `dot0-go-relay.onrender.com` is accessible
+2. **Check PIN**: Verify the PIN is exactly 6 digits
+3. **Browser Console**: Check for WebSocket connection errors
+4. **Network**: Ensure no firewall is blocking WSS connections
+
+## Development
+
+For local development with a local relay server, you can modify the `relayHost` variable in `App.tsx`:
+
+```javascript
+const relayHost = "localhost:8080"; // For local development
+const relayUrl = `ws://${relayHost}/connect-user/${pin}`; // Use WS for local
+```

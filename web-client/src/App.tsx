@@ -31,38 +31,9 @@ function App() {
       return;
     }
 
-    // Use environment variables or fallback to current hostname
-    const protocol = window.location.protocol === 'ws:';
-    
-    // For production, hardcode the relay server URL since environment variables might not work
-    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-    
-    let wsHost, wsPort;
-    if (isProduction) {
-      // Production: connect directly to relay server
-      wsHost = 'dot0-go-relay.onrender.com';
-      wsPort = ''; // No port for HTTPS/WSS
-    } else {
-      // Development: use environment variables or localhost
-      wsHost = process.env.REACT_APP_WEBSOCKET_HOST || window.location.hostname;
-      wsPort = process.env.REACT_APP_WEBSOCKET_PORT;
-    }
-    
-    // Debug environment variables
-    console.log('Connection configuration:', {
-      isProduction,
-      hostname: window.location.hostname,
-      REACT_APP_WEBSOCKET_HOST: process.env.REACT_APP_WEBSOCKET_HOST,
-      REACT_APP_WEBSOCKET_PORT: process.env.REACT_APP_WEBSOCKET_PORT,
-      wsHost,
-      wsPort,
-      protocol
-    });
-    
-    // Build relay URL - don't include port if it's empty or undefined (for HTTPS/WSS)
-    const relayUrl = wsPort && wsPort.trim() !== '' ? 
-      `${protocol}//${wsHost}:${wsPort}/connect-user/${pin}` :
-      `${protocol}//${wsHost}/connect-user/${pin}`;
+    // Always use WSS (secure WebSocket) for the deployed relay server
+    const relayHost = 'dot0-go-relay.onrender.com';
+    const relayUrl = `wss://${relayHost}/connect-user/${pin}`;
     
     console.log('Connecting to:', relayUrl);
     
@@ -71,22 +42,29 @@ function App() {
     const socket = new WebSocket(relayUrl);
 
     socket.onopen = () => {
+      console.log('WebSocket connection established');
       setConnectionStatus('Connected');
       setIsConnected(true);
       requestFileList('/');
     };
 
     socket.onmessage = (event) => {
-      const message: Message = JSON.parse(event.data);
-      handleMessage(message);
+      try {
+        const message: Message = JSON.parse(event.data);
+        handleMessage(message);
+      } catch (error) {
+        console.error('Failed to parse WebSocket message:', error);
+      }
     };
 
     socket.onclose = (event) => {
+      console.log('WebSocket connection closed:', event.code, event.reason);
       setConnectionStatus(`Disconnected (${event.code})`);
       setIsConnected(false);
     };
 
     socket.onerror = (error) => {
+      console.error('WebSocket connection error:', error);
       setConnectionStatus('Connection failed');
       setIsConnected(false);
     };
