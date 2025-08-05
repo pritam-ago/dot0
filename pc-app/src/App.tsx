@@ -21,6 +21,16 @@ function App() {
   const [ws, setWs] = useState<WebSocket | null>(null);
   // Store current session data for immediate access
   const [sessionData, setSessionData] = useState<{pin: string, folder: string} | null>(null);
+  const [isAutoConnecting, setIsAutoConnecting] = useState(false);
+
+  // Constants for pin storage
+  const PIN_VALIDITY_DAYS = 15;
+  const PIN_VALIDITY_MS = PIN_VALIDITY_DAYS * 24 * 60 * 60 * 1000;
+  const STORAGE_KEYS = {
+    PIN: 'pc_app_session_pin',
+    FOLDER: 'pc_app_session_folder',
+    TIMESTAMP: 'pc_app_session_timestamp'
+  };
 
   // Helper functions for localStorage
   const saveToLocalStorage = (key: string, value: string) => {
@@ -41,15 +51,85 @@ function App() {
     }
   };
 
+  const clearStoredSession = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.PIN);
+      localStorage.removeItem(STORAGE_KEYS.FOLDER);
+      localStorage.removeItem(STORAGE_KEYS.TIMESTAMP);
+    } catch (error) {
+      console.error('Failed to clear stored session:', error);
+    }
+  };
+
+  const isStoredSessionValid = (): boolean => {
+    const storedPin = getFromLocalStorage(STORAGE_KEYS.PIN);
+    const storedFolder = getFromLocalStorage(STORAGE_KEYS.FOLDER);
+    const storedTimestamp = getFromLocalStorage(STORAGE_KEYS.TIMESTAMP);
+    
+    if (!storedPin || !storedFolder || !storedTimestamp) {
+      return false;
+    }
+    
+    const age = Date.now() - parseInt(storedTimestamp, 10);
+    return age < PIN_VALIDITY_MS;
+  };
+
+  const storeSessionData = (pin: string, folder: string) => {
+    saveToLocalStorage(STORAGE_KEYS.PIN, pin);
+    saveToLocalStorage(STORAGE_KEYS.FOLDER, folder);
+    saveToLocalStorage(STORAGE_KEYS.TIMESTAMP, Date.now().toString());
+  };
+
   // Load saved data on app startup
   const loadSavedData = () => {
-    const savedPin = getFromLocalStorage('pc_app_pin');
-    const savedFolder = getFromLocalStorage('pc_app_folder');
+    const savedPin = getFromLocalStorage(STORAGE_KEYS.PIN);
+    const savedFolder = getFromLocalStorage(STORAGE_KEYS.FOLDER);
     
-    if (savedPin && savedFolder) {
+    if (savedPin && savedFolder && isStoredSessionValid()) {
       setPin(savedPin);
       setSelectedFolder(savedFolder);
       setSessionData({ pin: savedPin, folder: savedFolder });
+      
+      // Auto-connect if session is valid
+      setIsAutoConnecting(true);
+      autoConnectWithStoredSession(savedPin, savedFolder);
+    }
+  };
+
+  const autoConnectWithStoredSession = async (storedPin: string, storedFolder: string) => {
+    try {
+      // Start local file server
+      await invoke('start_server', { folder: storedFolder });
+      
+      // Register PIN with relay server
+      const registrationSuccess = await registerPin(storedPin);
+      if (!registrationSuccess) {
+        console.error("Failed to register PIN, cannot proceed with connection");
+        setIsAutoConnecting(false);
+        return;
+      }
+      
+      // Connect to relay server
+      await connectToRelay(storedPin, storedFolder);
+      
+      // Wait a moment for WebSocket connection to be fully established
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Set initial path and send initial file listing
+      setCurrentPath(storedFolder);
+      
+      if (ws) {
+        ws.send(JSON.stringify({
+          type: "list_files",
+          data: { path: storedFolder }
+        }));
+      }
+      
+      setIsAutoConnecting(false);
+    } catch (error) {
+      console.error("Error in auto-connect:", error);
+      setIsAutoConnecting(false);
+      clearStoredSession();
     }
   };
 
@@ -340,8 +420,11 @@ function App() {
         setPin(newPin);
         
         // Save to localStorage for immediate access
-        saveToLocalStorage('pc_app_pin', newPin);
-        saveToLocalStorage('pc_app_folder', folder);
+        saveToLocalStorage(STORAGE_KEYS.PIN, newPin);
+        saveToLocalStorage(STORAGE_KEYS.FOLDER, folder);
+        
+        // Store session data with timestamp
+        storeSessionData(newPin, folder);
         
         // Set session data for immediate access
         setSessionData({ pin: newPin, folder });
@@ -405,6 +488,11 @@ function App() {
 
       <div className="status-section">
         <p>Status: {isConnected ? "Connected" : "Disconnected"}</p>
+        {isAutoConnecting && (
+          <p className="auto-connect-notice">
+            <strong>🔄 Auto-connecting with saved session...</strong>
+          </p>
+        )}
         {pin && <p>PIN: <strong>{pin}</strong></p>}
         {selectedFolder && <p>Sharing: {selectedFolder}</p>}
       </div>
@@ -413,6 +501,11 @@ function App() {
         <button onClick={selectFolder} className="btn primary">
           Select Folder to Share
         </button>
+        {isStoredSessionValid() && !isAutoConnecting && (
+          <button onClick={clearStoredSession} className="btn secondary">
+            Forget Saved Session
+          </button>
+        )}
       </div>
 
       {isConnected && (

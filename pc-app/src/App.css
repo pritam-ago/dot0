@@ -108,6 +108,16 @@ button {
   margin: 5px 0;
 }
 
+.auto-connect-notice {
+  margin: 5px 0;
+  padding: 8px;
+  background: #fff3cd;
+  border-radius: 5px;
+  border-left: 3px solid #ffc107;
+  color: #856404;
+  font-weight: 500;
+}
+
 .controls {
   margin: 20px 0;
 }
@@ -124,6 +134,23 @@ button {
 }
 
 .btn.primary:hover {
+  transform: translateY(-2px);
+}
+
+.btn.secondary {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  margin-left: 10px;
+}
+
+.btn.secondary:hover {
+  background: #5a6268;
   transform: translateY(-2px);
 }
 

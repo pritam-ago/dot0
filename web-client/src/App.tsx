@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 
 interface FileInfo {
@@ -23,7 +23,81 @@ function App() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<string>('Not connected');
+  const [isAutoConnecting, setIsAutoConnecting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Constants for pin storage
+  const PIN_VALIDITY_DAYS = 15;
+  const PIN_VALIDITY_MS = PIN_VALIDITY_DAYS * 24 * 60 * 60 * 1000;
+  const STORAGE_KEYS = {
+    PIN: 'web_client_session_pin',
+    TIMESTAMP: 'web_client_session_timestamp'
+  };
+
+  // Helper functions for localStorage
+  const saveToLocalStorage = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (error) {
+      console.error(`Failed to save to localStorage: ${key}`, error);
+    }
+  };
+
+  const getFromLocalStorage = (key: string): string | null => {
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      console.error(`Failed to get from localStorage: ${key}`, error);
+      return null;
+    }
+  };
+
+  const clearStoredSession = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEYS.PIN);
+      localStorage.removeItem(STORAGE_KEYS.TIMESTAMP);
+    } catch (error) {
+      console.error('Failed to clear stored session:', error);
+    }
+  };
+
+  const isStoredPinValid = (): boolean => {
+    const storedPin = getFromLocalStorage(STORAGE_KEYS.PIN);
+    const storedTimestamp = getFromLocalStorage(STORAGE_KEYS.TIMESTAMP);
+    
+    if (!storedPin || !storedTimestamp) {
+      return false;
+    }
+    
+    const age = Date.now() - parseInt(storedTimestamp, 10);
+    return age < PIN_VALIDITY_MS;
+  };
+
+  const storeSessionPin = (pin: string) => {
+    saveToLocalStorage(STORAGE_KEYS.PIN, pin);
+    saveToLocalStorage(STORAGE_KEYS.TIMESTAMP, Date.now().toString());
+  };
+
+  // Auto-connect on app startup if valid pin exists
+  useEffect(() => {
+    const autoConnect = async () => {
+      if (isStoredPinValid()) {
+        const storedPin = getFromLocalStorage(STORAGE_KEYS.PIN);
+        if (storedPin) {
+          setIsAutoConnecting(true);
+          setConnectionStatus('Auto-connecting...');
+          setPin(storedPin);
+          
+          // Wait a moment for the pin to be set, then connect
+          setTimeout(() => {
+            connectWithPin(storedPin);
+          }, 100);
+        }
+      }
+    };
+
+    autoConnect();
+  }, []);
 
   const checkPinExists = async (pin: string): Promise<{ exists: boolean; pcConnected?: boolean; error?: string }> => {
     try {
@@ -49,8 +123,8 @@ function App() {
     }
   };
 
-  const connect = async () => {   
-    if (pin.length !== 6) {
+  const connectWithPin = async (pinToUse: string) => {   
+    if (pinToUse.length !== 6) {
       alert('Please enter a 6-digit PIN');
       return;
     }
@@ -58,23 +132,30 @@ function App() {
     setConnectionStatus('Checking PIN...');
     
     // Check if PIN exists first
-    const pinCheck = await checkPinExists(pin);
+    const pinCheck = await checkPinExists(pinToUse);
     if (!pinCheck.exists) {
       setConnectionStatus('PIN not found');
       const errorMsg = pinCheck.error || 'PIN not found';
       alert(`PIN check failed: ${errorMsg}\n\nPlease make sure:\n\n1. The PC app is running\n2. You entered the correct 6-digit PIN\n3. The PC app has registered the PIN`);
+      
+      // Clear invalid stored session
+      if (isAutoConnecting) {
+        clearStoredSession();
+      }
+      setIsAutoConnecting(false);
       return;
     }
 
     if (!pinCheck.pcConnected) {
       setConnectionStatus('PC not connected');
       alert('PIN is valid but PC is not connected!\n\nPlease make sure:\n\n1. The PC app is running and connected\n2. The PC app has selected a folder to share\n3. Try refreshing the PC app connection');
+      setIsAutoConnecting(false);
       return;
     }
 
     // Always use WSS (secure WebSocket) for the deployed relay server
     const relayHost = 'dot0-go-relay.onrender.com';
-    const relayUrl = `wss://${relayHost}/connect-user/${pin}`;
+    const relayUrl = `wss://${relayHost}/connect-user/${pinToUse}`;
     
     console.log('Connecting to:', relayUrl);
     
@@ -86,6 +167,11 @@ function App() {
       console.log('WebSocket connection established');
       setConnectionStatus('Connected');
       setIsConnected(true);
+      setIsAutoConnecting(false);
+      
+      // Store the successful session pin
+      storeSessionPin(pinToUse);
+      
       requestFileList('/');
     };
 
@@ -151,6 +237,12 @@ function App() {
       
       setConnectionStatus(errorMessage);
       setIsConnected(false);
+      setIsAutoConnecting(false);
+      
+      // Clear stored session if connection failed during auto-connect
+      if (isAutoConnecting && event.code === 1006) {
+        clearStoredSession();
+      }
       
       // Show user-friendly error message
       if (event.code === 1006) {
@@ -162,9 +254,19 @@ function App() {
       console.error('WebSocket connection error:', error);
       setConnectionStatus('Connection failed');
       setIsConnected(false);
+      setIsAutoConnecting(false);
+      
+      // Clear stored session if connection failed during auto-connect
+      if (isAutoConnecting) {
+        clearStoredSession();
+      }
     };
 
     setWs(socket);
+  };
+
+  const connect = async () => {
+    await connectWithPin(pin);
   };
 
   const disconnect = () => {
@@ -173,6 +275,11 @@ function App() {
       ws.close();
       setWs(null);
     }
+  };
+
+  const clearStoredSessionAndDisconnect = () => {
+    clearStoredSession();
+    disconnect();
   };
 
   const requestFileList = (path: string) => {
@@ -333,6 +440,11 @@ function App() {
               </ol>
               <div className="connection-status">
                 <p><strong>Connection Status:</strong> {connectionStatus}</p>
+                {isAutoConnecting && (
+                  <p className="auto-connect-notice">
+                    <strong>🔄 Auto-connecting with saved session...</strong>
+                  </p>
+                )}
               </div>
             </div>
             <div className="input-group">
@@ -348,6 +460,11 @@ function App() {
             <button onClick={connect} className="connect-btn">
               Connect
             </button>
+            {isStoredPinValid() && !isAutoConnecting && (
+              <button onClick={clearStoredSession} className="forget-session-btn">
+                Forget Saved Session
+              </button>
+            )}
           </div>
         ) : (
           <div className="file-browser">

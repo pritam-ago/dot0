@@ -101,6 +101,34 @@ body {
   font-size: 0.9rem;
 }
 
+.auto-connect-notice {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #fff3cd;
+  border-radius: 5px;
+  border-left: 3px solid #ffc107;
+  color: #856404;
+}
+
+.forget-session-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+  width: 100%;
+}
+
+.forget-session-btn:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
 .status-text {
   padding: 2px 8px;
   border-radius: 4px;
