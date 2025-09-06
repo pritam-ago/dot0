@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: cloudstore_test
+          POSTGRES_USER: cloudstore
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+    - name: Install dependencies
+      run: cd backend && go mod download
+    - name: Run linter
+      uses: golangci/golangci-lint-action@v3
+      with:
+        working-directory: backend
+        version: latest
+    - name: Run tests
+      run: cd backend && go test -v ./...
+
+  pc-client:
+    name: PC Client Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    - name: Install dependencies
+      run: cd pc-client && npm ci
+    - name: Run linter
+      run: cd pc-client && npm run lint
+    - name: Run tests
+      run: cd pc-client && npm test
+
+  mobile:
+    name: Mobile Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    - name: Install dependencies
+      run: cd mobile && npm ci
+    - name: Run linter
+      run: cd mobile && npm run lint
+    - name: Run tests
+      run: cd mobile && npm test

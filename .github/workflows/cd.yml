@@ -1,0 +1,57 @@
+name: CD
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            cloudstore/backend:latest
+            cloudstore/backend:${{ github.ref_name }}
+
+  deploy-pc-client:
+    name: Deploy PC Client
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: cd pc-client && npm ci
+      - name: Build
+        run: cd pc-client && npm run build
+      # Add steps to publish to distribution platforms
+
+  deploy-mobile:
+    name: Deploy Mobile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: cd mobile && npm ci
+      - name: Build
+        run: cd mobile && npm run build
+      # Add steps to publish to app stores
+
+# Note: This is a placeholder workflow.
+# Add actual deployment steps based on your infrastructure:
+# - Kubernetes deployment
+# - Cloud provider deployment
+# - App store submissions
+# - etc.
