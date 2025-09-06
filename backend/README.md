@@ -27,8 +27,8 @@ backend/
 1. **Prerequisites**
 
    - Go 1.21+
-   - Docker and Docker Compose
-   - Make
+   - PostgreSQL
+   - Redis
 
 2. **Setup**
 
@@ -45,10 +45,6 @@ backend/
    ```bash
    # Run locally
    make run
-
-   # Or with Docker
-   make docker-build
-   make docker-run
    ```
 
 4. **Development**

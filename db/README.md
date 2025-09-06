@@ -13,7 +13,6 @@ Database configuration and migrations for CloudStore.
 ```
 db/
 ├── migrations/        # Database migrations
-├── Dockerfile        # PostgreSQL Dockerfile
 └── init.sql         # Initial database setup
 ```
 
@@ -52,11 +51,9 @@ db/
 
 ## 🚀 Getting Started
 
-1. **Start the database**
+1. **Setup PostgreSQL and Redis**
 
-   ```bash
-   docker-compose up db redis
-   ```
+   Install and configure PostgreSQL and Redis according to your system's package manager.
 
 2. **Run migrations**
 
