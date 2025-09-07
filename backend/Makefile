@@ -1,38 +1,13 @@
-.PHONY: build run test lint clean
+.PHONY: migrate-up migrate-down migrate-create
 
-# Build the application
-build:
-	go build -o bin/main .
+# Database migration commands
+migrate-up:
+	migrate -database "${DATABASE_URL}" -path db/migrations up
 
-# Run the application
-run:
-	go run main.go
+migrate-down:
+	migrate -database "${DATABASE_URL}" -path db/migrations down
 
-# Run tests
-test:
-	go test -v ./...
-
-# Run linter
-lint:
-	golangci-lint run
-
-# Clean build artifacts
-clean:
-	rm -rf bin/
-
-# Download dependencies
-deps:
-	go mod download
-
-# Update dependencies
-deps-update:
-	go get -u ./...
-	go mod tidy
-
-# Build Docker image
-docker-build:
-	docker build -t cloudstore-backend .
-
-# Run Docker container
-docker-run:
-	docker run -p 8080:8080 cloudstore-backend
+# Create a new migration file
+migrate-create:
+	@read -p "Enter migration name: " name; \
+	migrate create -ext sql -dir db/migrations -seq $$name
