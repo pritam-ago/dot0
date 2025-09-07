@@ -8,16 +8,14 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/pritam-ago/dot0/backend/config"
 )
 
 var DB *gorm.DB
 
 // ConnectDB establishes connection to the database and handles auto-migration
 func ConnectDB() (*gorm.DB, error) {
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		return nil, fmt.Errorf("DATABASE_URL environment variable is not set")
-	}
 
 	// Configure GORM logger
 	gormLogger := logger.New(
@@ -27,8 +25,10 @@ func ConnectDB() (*gorm.DB, error) {
 		},
 	)
 
+	cfg := config.Get()
+
 	// Connect to database
-	db, err := gorm.Open(postgres.Open(dbURL), &gorm.Config{
+	db, err := gorm.Open(postgres.Open(cfg.DatabaseURL), &gorm.Config{
 		Logger: gormLogger,
 	})
 	if err != nil {
